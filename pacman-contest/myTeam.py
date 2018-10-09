@@ -215,7 +215,7 @@ class OffensiveReflexAgent(DummyAgent):
             features['disToOpponent'] = min(distance)
 
         if gameState.getAgentState(self.index).isPacman:
-            corner = self.isCorner(successor, 2)
+            corner = self.isCorner(successor, 3)
             # if the state is in a corner
             if corner:
                 dis = features['disToOpponent']
@@ -268,11 +268,12 @@ class OffensiveReflexAgent(DummyAgent):
                 if agent.scaredTimer > 0:
                     # in case the agent is in others boundary
                     if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': 1, 'reverse': -1, 'distanceToCapsule': 0}
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
                     else:
                         return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
                                 'return': 0, 'reverse': -1}
+
                 # Visible and not scared
                 else:
                     # in case the agent is in others boundary
@@ -282,6 +283,7 @@ class OffensiveReflexAgent(DummyAgent):
                     else:
                         return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
                                 'return': 0, 'reverse': -1}
+
         # no one in vision
         else:
             # in case the agent is in others boundary
@@ -294,8 +296,9 @@ class OffensiveReflexAgent(DummyAgent):
 
     def isCorner(self, gameState, depth):
         if depth > 0:
-            legalActions = gameState.getLegalActions(self.index)
-            currentAction = gameState.getAgentState(self.index).configuration.direction
+            stateCopy = gameState.deepCopy()
+            legalActions = stateCopy.getLegalActions(self.index)
+            currentAction = stateCopy.getAgentState(self.index).configuration.direction
             if Directions.REVERSE[currentAction] in legalActions:
                 legalActions.remove(Directions.REVERSE[currentAction])
             if Directions.STOP in legalActions:
@@ -305,7 +308,7 @@ class OffensiveReflexAgent(DummyAgent):
             if len(legalActions) == 0:
                 return True
             elif len(legalActions) == 1:
-                successor = gameState.generateSuccessor(self.index, legalActions[0])
+                successor = stateCopy.generateSuccessor(self.index, legalActions[0])
                 return self.isCorner(successor, depth - 1)
             else:
                 return False
