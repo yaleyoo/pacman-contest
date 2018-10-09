@@ -17,6 +17,7 @@ import random, time, util
 from game import Directions
 import game
 from util import nearestPoint
+import math
 
 
 #################
@@ -80,7 +81,10 @@ class DummyAgent(CaptureAgent):
         '''
         Your initialization code goes here, if you need any.
         '''
-        middle = (gameState.data.layout.width - 2) / 2
+        if self.red:
+            middle = (gameState.data.layout.width - 2) / 2
+        else:
+            middle = (gameState.data.layout.width - 2) + 1 / 2
         self.boundary = []
         for i in range(1, gameState.data.layout.height - 1):
             if not gameState.hasWall(middle, i):
@@ -123,6 +127,7 @@ class DummyAgent(CaptureAgent):
     """
         features = self.getFeatures(gameState, action)
         weights = self.getWeights(gameState, action)
+
         return features * weights
 
     def getFeatures(self, gameState, action):
@@ -133,9 +138,38 @@ class DummyAgent(CaptureAgent):
     def getWeights(self, gameState, action):
         return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0}
 
-    def qLearning(self, gameState, times):
+    def qLearning(self, gameState, decay, depth):
+        new_state = gameState.deepCopy()
+        if depth == 0:
+            result_list = []
+            actions = new_state.getLegalActions(self.index)
+            actions.remove(Directions.STOP)
 
-        return
+            reversed_direction = Directions.REVERSE[new_state.getAgentState(self.index).configuration.direction]
+            if reversed_direction in actions and len(actions) > 1:
+                actions.remove(reversed_direction)
+            a = random.choice(actions)
+            next_state = new_state.generateSuccessor(self.index, a)
+            result_list.append(self.evaluate(next_state, Directions.STOP))
+            return max(result_list)
+
+        # Get valid actions
+        result_list = []
+        actions = new_state.getLegalActions(self.index)
+        current_direction = new_state.getAgentState(self.index).configuration.direction
+        # The agent should not use the reverse direction during simulation
+
+        reversed_direction = Directions.REVERSE[current_direction]
+        if reversed_direction in actions and len(actions) > 1:
+            actions.remove(reversed_direction)
+
+        # Randomly chooses a valid action
+        for a in actions:
+            # Compute new state and update depth
+            next_state = new_state.generateSuccessor(self.index, a)
+            result_list.append(
+                self.evaluate(next_state, Directions.STOP) + decay * self.qLearning(next_state, decay, depth - 1))
+        return max(result_list)
 
     def MCTS(self, gameState, discount, depth):
         actions = gameState.getLegalActions(self.index)
@@ -149,7 +183,6 @@ class DummyAgent(CaptureAgent):
 
         else:
             return self.evaluate(gameState, Directions.STOP)
-
 
 
 class OffensiveReflexAgent(DummyAgent):
@@ -167,40 +200,44 @@ class OffensiveReflexAgent(DummyAgent):
         features['foods'] = -len(foodList)  # self.getScore(successor)
 
         state = successor.getAgentState(self.index)
-        if state.isPacman:
-            distance = []
-            pos = successor.getAgentState(self.index).getPosition()
-            opponents = self.getOpponents(gameState)
-            for o in opponents:
-                opponent = successor.getAgentState(o)
+
+        distance = []
+        pos = successor.getAgentState(self.index).getPosition()
+        opponents = self.getOpponents(gameState)
+        for o in opponents:
+            opponent = successor.getAgentState(o)
+            if not opponent.isPacman:
                 opponentPos = opponent.getPosition()
                 if opponentPos is not None:
                     distance.append(self.getMazeDistance(pos, opponentPos))
 
-            if len(distance) > 0:
-                features['disToOpponent'] = min(distance)
+        if len(distance) > 0:
+            features['disToOpponent'] = min(distance)
 
-            corner = self.isCorner(gameState, action, 3)
+        if gameState.getAgentState(self.index).isPacman:
+            corner = self.isCorner(successor, 2)
             # if the state is in a corner
             if corner:
                 dis = features['disToOpponent']
                 if dis != 0:
-                    # the value is positive +
-                    features['corner'] = - 1000 / dis ** 2
+                    print 1000 / (dis ** 2)
+                    features['RiskInCorner'] = 1000 / (dis ** 2)
                 else:
-                    features['corner'] = 0
+                    features['RiskInCorner'] = 1
 
-            numOfCarry = successor.getAgentState(self.index).numCarrying
-            boundaryMin = 1000000
-            for i in range(len(self.boundary)):
-                disBoundary = self.getMazeDistance(pos, self.boundary[i])
-                if disBoundary < boundaryMin:
-                    boundaryMin = disBoundary
+        numOfCarry = successor.getAgentState(self.index).numCarrying
+        boundaryMin = 1000000
+        for i in range(len(self.boundary)):
+            disBoundary = self.getMazeDistance(pos, self.boundary[i])
+            if disBoundary < boundaryMin:
+                boundaryMin = disBoundary
 
-            features['return'] = boundaryMin * numOfCarry
+        features['return'] = boundaryMin * math.sqrt(numOfCarry) - features['disToOpponent']
+
+        if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
+            features['reverse'] = 1
 
         # Compute distance to the nearest food
-
         if len(foodList) > 0:  # This should always be True,  but better safe than sorry
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -209,21 +246,27 @@ class OffensiveReflexAgent(DummyAgent):
         return features
 
     def getWeights(self, gameState, action):
-        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'corner': -100, 'return': -1}
+        # in case the agent is in others boundary
+        if gameState.getAgentState(self.index).isPacman:
+            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1, 'return': -0.5, 'reverse': -1}
+        else:
+            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0, 'return': 0, 'reverse': -1}
 
-    def isCorner(self, gameState, action, depth):
+    def isCorner(self, gameState, depth):
         if depth > 0:
-            successor = self.getSuccessor(gameState, action)
-            legalActions = successor.getLegalActions(self.index)
-            legalActions.remove(Directions.REVERSE[action])
-            legalActions.remove(Directions.STOP)
+            legalActions = gameState.getLegalActions(self.index)
+            currentAction = gameState.getAgentState(self.index).configuration.direction
+            if Directions.REVERSE[currentAction] in legalActions:
+                legalActions.remove(Directions.REVERSE[currentAction])
+            if Directions.STOP in legalActions:
+                legalActions.remove(Directions.STOP)
 
             # if the legal actions has only STOP and other 1 action. that means this state is a corner
             if len(legalActions) == 0:
                 return True
             elif len(legalActions) == 1:
-                print legalActions
-                return self.isCorner(successor, legalActions[0], depth - 1)
+                successor = gameState.generateSuccessor(self.index, legalActions[0])
+                return self.isCorner(successor, depth - 1)
             else:
                 return False
         return False
