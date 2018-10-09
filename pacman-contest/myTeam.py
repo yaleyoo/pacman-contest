@@ -243,12 +243,23 @@ class OffensiveReflexAgent(DummyAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
+        capsuleList = gameState.data.capsules
+        if len(capsuleList) > 0:
+            minCapsuleDistance = 99999
+            for c in capsuleList:
+                distance = self.getMazeDistance(pos, c)
+                if distance < minCapsuleDistance:
+                    minCapsuleDistance = distance
+            features['distanceToCapsule'] = minCapsuleDistance
+        else:
+            features['distanceToCapsule'] = 0
+
         return features
 
     def getWeights(self, gameState, action):
         # in case the agent is in others boundary
         if gameState.getAgentState(self.index).isPacman:
-            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1, 'return': -0.5, 'reverse': -1}
+            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1, 'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
         else:
             return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0, 'return': 0, 'reverse': -1}
 
