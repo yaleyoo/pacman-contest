@@ -243,7 +243,7 @@ class OffensiveReflexAgent(DummyAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
-        #add distanceToCapsule feature
+        # add distanceToCapsule feature
         capsuleList = set(gameState.data.capsules) - set(self.getCapsulesYouAreDefending(gameState))
         if len(capsuleList) > 0:
             minCapsuleDistance = 99999
@@ -258,12 +258,39 @@ class OffensiveReflexAgent(DummyAgent):
         return features
 
     def getWeights(self, gameState, action):
-        # in case the agent is in others boundary
-        if gameState.getAgentState(self.index).isPacman:
-            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1, 'return': -0.5, 'reverse': -1,
-            'distanceToCapsule':-2}
+        successor = self.getSuccessor(gameState, action)
+        opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
+        # some one in vision
+        if len(visible) > 0:
+            for agent in visible:
+                # someone scared in vision
+                if agent.scaredTimer > 0:
+                    # in case the agent is in others boundary
+                    if gameState.getAgentState(self.index).isPacman:
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                'return': 1, 'reverse': -1, 'distanceToCapsule': 0}
+                    else:
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                                'return': 0, 'reverse': -1}
+                # Visible and not scared
+                else:
+                    # in case the agent is in others boundary
+                    if gameState.getAgentState(self.index).isPacman:
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                    else:
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                                'return': 0, 'reverse': -1}
+        # no one in vision
         else:
-            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0, 'return': 0, 'reverse': -1}
+            # in case the agent is in others boundary
+            if gameState.getAgentState(self.index).isPacman:
+                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                        'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+            else:
+                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                        'return': 0, 'reverse': -1}
 
     def isCorner(self, gameState, depth):
         if depth > 0:
