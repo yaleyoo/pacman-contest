@@ -97,12 +97,12 @@ class DummyAgent(CaptureAgent):
         actions = gameState.getLegalActions(self.index)
         actions.remove(Directions.STOP)
 
-        values = [self.evaluate(gameState, a) for a in actions]
-        '''values = []
+        # values = [self.evaluate(gameState, a) for a in actions]
+        values = []
         for a in actions:
             successor = gameState.generateSuccessor(self.index, a)
-            value = self.MCTS(successor, 0.7, 2)
-            values.append(value)'''
+            value = self.MCTS(successor, 0.5, 2)
+            values.append(value)
 
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
@@ -220,7 +220,6 @@ class OffensiveReflexAgent(DummyAgent):
             if corner:
                 dis = features['disToOpponent']
                 if dis != 0:
-                    print 1000 / (dis ** 2)
                     features['RiskInCorner'] = 1000 / (dis ** 2)
                 else:
                     features['RiskInCorner'] = 1
@@ -265,13 +264,22 @@ class OffensiveReflexAgent(DummyAgent):
         if len(visible) > 0:
             for agent in visible:
                 # someone scared in vision
-                if agent.scaredTimer > 0:
+                if agent.scaredTimer >= 10:
+                    # in case the agent is in others boundary
+                    if gameState.getAgentState(self.index).isPacman:
+                        return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
+                    else:
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                'return': 0, 'reverse': -1}
+
+                elif 0 < agent.scaredTimer < 10:
                     # in case the agent is in others boundary
                     if gameState.getAgentState(self.index).isPacman:
                         return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
                     else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
                                 'return': 0, 'reverse': -1}
 
                 # Visible and not scared
