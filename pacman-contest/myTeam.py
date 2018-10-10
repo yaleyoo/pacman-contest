@@ -333,8 +333,23 @@ class DefensiveReflexAgent(DummyAgent):
   could be like.  It is not the best or only way to make
   such an agent.
   """
+    def getCenterPointOfDefensiveFood(self, gameState):
+        homeFoods = self.getFoodYouAreDefending(gameState).asList()
+        while len(homeFoods)> 1 :
+            newCenters = []
+            for i in range(0,len(homeFoods)-1) :
+                x = (homeFoods[i][0] + homeFoods[i+1][0])>>1
+                y = (homeFoods[i][1] + homeFoods[i+1][1])>>1
+                newCenters.append((x,y))
+                homeFoods.remove(homeFoods[i])
+                homeFoods.remove(homeFoods[i+1])
+            homeFoods = newCenters
+        return homeFoods[0]
 
     def getFeatures(self, gameState, action):
+
+        print self.displayDistributionsOverPositions(gameState)
+        
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
 
