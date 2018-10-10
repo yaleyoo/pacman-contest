@@ -388,15 +388,24 @@ class DefensiveReflexAgent(DummyAgent):
         return features
 
     def getWeights(self, gameState, action):
-        successor = self.getSuccessor(gameState,action)
+        successor = self.getSuccessor(gameState, action)
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-        if len(invaders) > 0:
-            return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 
-                    'reverse': -2, 'distToFoodCenter': 0}
+        scaredTime = successor.getAgentState(self.index).scaredTimer
+        if scaredTime > 0:
+            if len(invaders) > 0:
+                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': 5, 'stop': -100,
+                        'reverse': -2, 'distToFoodCenter': 0}
+            else:
+                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': 5, 'stop': -100,
+                        'reverse': -2, 'distToFoodCenter': -1}
         else:
-            return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
-                    'reverse': -2, 'distToFoodCenter': -1}
+            if len(invaders) > 0:
+                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
+                        'reverse': -2, 'distToFoodCenter': 0}
+            else:
+                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
+                        'reverse': -2, 'distToFoodCenter': -1}
 
     def nearPosInGrid(self, gameState, pos):
         left = (pos[0] - 2, pos[1])
