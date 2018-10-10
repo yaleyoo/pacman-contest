@@ -263,47 +263,53 @@ class OffensiveReflexAgent(DummyAgent):
         successor = self.getSuccessor(gameState, action)
         opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
-        # some one in vision
-        if len(visible) > 0:
-            for agent in visible:
-                # someone scared in vision
-                if agent.scaredTimer >= 10:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+        foodList = self.getFood(successor).asList()
 
-                elif 0 < agent.scaredTimer < 10:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+        if len(foodList) > 2:
+            # some one in vision
+            if len(visible) > 0:
+                for agent in visible:
+                    # someone scared in vision
+                    if agent.scaredTimer >= 10:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
 
-                # Visible and not scared
-                else:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+                    elif 0 < agent.scaredTimer < 10:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
 
-        # no one in vision
-        else:
-            # in case the agent is in others boundary
-            if gameState.getAgentState(self.index).isPacman:
-                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                        'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                    # Visible and not scared
+                    else:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
+
+            # no one in vision
             else:
-                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
-                        'return': 0, 'reverse': -1}
+                # in case the agent is in others boundary
+                if gameState.getAgentState(self.index).isPacman:
+                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                            'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                else:
+                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                            'return': 0, 'reverse': -1}
+        else:
+            return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 100, 'RiskInCorner': -1,
+                    'return': -10, 'reverse': -1, 'distanceToCapsule': 0}
 
     def isCorner(self, gameState, depth):
         if depth > 0:
