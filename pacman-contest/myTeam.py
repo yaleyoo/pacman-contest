@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -94,14 +94,15 @@ class DummyAgent(CaptureAgent):
         """
         Picks among actions randomly.
         """
-        actions = gameState.getLegalActions(self.index)
+        gameStateCopy = gameState.deepCopy()
+        actions = gameStateCopy.getLegalActions(self.index)
         actions.remove(Directions.STOP)
 
-        # values = [self.evaluate(gameState, a) for a in actions]
+        # values1 = [self.evaluate(gameState, a) for a in actions]
         values = []
         for a in actions:
-            successor = gameState.generateSuccessor(self.index, a)
-            value = self.MCTS(successor, 0.5, 2)
+            # successor = gameState.generateSuccessor(self.index, a)
+            value = self.MCTS(gameState, a, 0.01, 3)
             values.append(value)
 
         maxValue = max(values)
@@ -171,18 +172,20 @@ class DummyAgent(CaptureAgent):
                 self.evaluate(next_state, Directions.STOP) + decay * self.qLearning(next_state, decay, depth - 1))
         return max(result_list)
 
-    def MCTS(self, gameState, discount, depth):
-        actions = gameState.getLegalActions(self.index)
+    def MCTS(self, gameState, action, discount, depth):
+        gameStateCopy = gameState.deepCopy()
+        child = gameState.generateSuccessor(self.index, action).deepCopy()
+        actions = child.getLegalActions(self.index)
+        actions.remove(Directions.STOP)
         if depth > 0:
             a = random.choice(actions)
-            successor = gameState.generateSuccessor(self.index, a)
-            value = self.evaluate(gameState, Directions.STOP)
+            value = self.evaluate(gameState, action)
 
-            value = value + discount * self.MCTS(successor, discount, depth - 1)
+            value = value + discount * self.MCTS(child, a, discount, depth - 1)
             return value
 
         else:
-            return self.evaluate(gameState, Directions.STOP)
+            return self.evaluate(gameState, action)
 
 
 class OffensiveReflexAgent(DummyAgent):
@@ -202,7 +205,7 @@ class OffensiveReflexAgent(DummyAgent):
         state = successor.getAgentState(self.index)
 
         distance = []
-        pos = successor.getAgentState(self.index).getPosition()
+        pos = state.getPosition()
         opponents = self.getOpponents(gameState)
         for o in opponents:
             opponent = successor.getAgentState(o)
@@ -215,7 +218,7 @@ class OffensiveReflexAgent(DummyAgent):
             features['disToOpponent'] = min(distance)
 
         if gameState.getAgentState(self.index).isPacman:
-            corner = self.isCorner(successor, 3)
+            corner = self.isCorner(successor, 5)
             # if the state is in a corner
             if corner:
                 dis = features['disToOpponent']
