@@ -12,6 +12,7 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
+
 from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
@@ -24,6 +25,9 @@ from distanceCalculator import Distancer
 #################
 # Team creation #
 #################
+import sys
+sys.path.append("teams/Zelda/")
+
 
 def createTeam(firstIndex, secondIndex, isRed,
                first='OffensiveReflexAgent', second='DefensiveReflexAgent'):
@@ -99,10 +103,9 @@ class DummyAgent(CaptureAgent):
         actions = gameStateCopy.getLegalActions(self.index)
         actions.remove(Directions.STOP)
 
-        # values1 = [self.evaluate(gameState, a) for a in actions]
+        #values = [self.evaluate(gameState, a) for a in actions]
         values = []
         for a in actions:
-            # successor = gameState.generateSuccessor(self.index, a)
             value = self.MCTS(gameState, a, 0.01, 3)
             values.append(value)
 
@@ -219,7 +222,7 @@ class OffensiveReflexAgent(DummyAgent):
             features['disToOpponent'] = min(distance)
 
         if gameState.getAgentState(self.index).isPacman:
-            corner = self.isCorner(successor, 5)
+            corner = self.isCorner(successor, 1)
             # if the state is in a corner
             if corner:
                 dis = features['disToOpponent']
@@ -274,7 +277,7 @@ class OffensiveReflexAgent(DummyAgent):
                     if agent.scaredTimer >= 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
+                            return {'foods': 100, 'distanceToFood': -3, 'disToOpponent': 0, 'RiskInCorner': 0,
                                     'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
                         else:
                             return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
@@ -283,7 +286,7 @@ class OffensiveReflexAgent(DummyAgent):
                     elif 0 < agent.scaredTimer < 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 30, 'RiskInCorner': -1,
                                     'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
                         else:
                             return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
@@ -293,23 +296,23 @@ class OffensiveReflexAgent(DummyAgent):
                     else:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 50, 'RiskInCorner': -1,
                                     'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
                         else:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 50, 'RiskInCorner': 0,
                                     'return': 0, 'reverse': -1}
 
             # no one in vision
             else:
                 # in case the agent is in others boundary
                 if gameState.getAgentState(self.index).isPacman:
-                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                    return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 50, 'RiskInCorner': -1,
                             'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
                 else:
-                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 50, 'RiskInCorner': 0,
                             'return': 0, 'reverse': -1}
         else:
-            return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 100, 'RiskInCorner': -1,
+            return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 50, 'RiskInCorner': -1,
                     'return': -10, 'reverse': -1, 'distanceToCapsule': 0}
 
     def isCorner(self, gameState, depth):
