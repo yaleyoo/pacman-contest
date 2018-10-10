@@ -18,6 +18,7 @@ from game import Directions
 import game
 from util import nearestPoint
 import math
+from distanceCalculator import Distancer
 
 
 #################
@@ -340,23 +341,21 @@ class DefensiveReflexAgent(DummyAgent):
   such an agent.
   """
     def getCenterPointOfDefensiveFood(self, gameState):
-	homeFoods = self.getFoodYouAreDefending(gameState).asList()
-	while len(homeFoods)> 1 :
-		newCenters = []
-		while len(homeFoods) > 1:
-			x = (homeFoods[0][0] + homeFoods[1][0])>>1
-			y = (homeFoods[0][1] + homeFoods[1][1])>>1
-			newCenters.append((x,y))
-			homeFoods.remove(homeFoods[0])
-			homeFoods.remove(homeFoods[0])
-		for i in homeFoods:
-			newCenters.append(i)
-		homeFoods = newCenters
-	return homeFoods[0]
-    
+        homeFoods = self.getFoodYouAreDefending(gameState).asList()
+        while len(homeFoods) > 1:
+            newCenters = []
+            while len(homeFoods) > 1:
+                x = (homeFoods[0][0] + homeFoods[1][0]) >> 1
+                y = (homeFoods[0][1] + homeFoods[1][1]) >> 1
+                newCenters.append((x, y))
+                homeFoods.remove(homeFoods[0])
+                homeFoods.remove(homeFoods[0])
+            for i in homeFoods:
+                newCenters.append(i)
+            homeFoods = newCenters
+        return homeFoods[0]
 
     def getFeatures(self, gameState, action):
-
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
 
@@ -369,6 +368,9 @@ class DefensiveReflexAgent(DummyAgent):
         
         # Computes the distance between defensive agent and food center
         foodCenter = self.getCenterPointOfDefensiveFood(gameState)
+        if gameState.hasWall(foodCenter[0], foodCenter[1]):
+            foodCenter = self.nearPosInGrid(gameState, foodCenter)
+
         features['distToFoodCenter'] = self.getMazeDistance(myPos, foodCenter)
 
         # Computes distance to invaders we can see
@@ -391,8 +393,31 @@ class DefensiveReflexAgent(DummyAgent):
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
         if len(invaders) > 0:
             return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 
-            'reverse': -2, 'distToFoodCenter':0}
+                    'reverse': -2, 'distToFoodCenter': 0}
         else:
-             return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 
-            'reverse': -2, 'distToFoodCenter':-1}
+            return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
+                    'reverse': -2, 'distToFoodCenter': -1}
 
+    def nearPosInGrid(self, gameState, pos):
+        left = (pos[0] - 2, pos[1])
+        right = (pos[0] + 2, pos[1])
+        up = (pos[0], pos[1] + 2)
+        down = (pos[0], pos[1] - 2)
+        dirList = [left, right, up, down]
+
+        for dir in dirList:
+            if self.inGrid(dir, gameState) and not gameState.hasWall(dir[0], dir[1]):
+                return dir
+        return random.choice(self.boundary)
+
+    def inGrid(self, pos, gameState):
+        if pos[0] < 1:
+            return False
+        elif pos[0] > gameState.data.layout.width - 1:
+            return False
+        elif pos[1] < 1:
+            return False
+        elif pos[1] > gameState.data.layout.height -1:
+            return False
+        else:
+            return True
