@@ -263,47 +263,53 @@ class OffensiveReflexAgent(DummyAgent):
         successor = self.getSuccessor(gameState, action)
         opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
-        # some one in vision
-        if len(visible) > 0:
-            for agent in visible:
-                # someone scared in vision
-                if agent.scaredTimer >= 10:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+        foodList = self.getFood(successor).asList()
 
-                elif 0 < agent.scaredTimer < 10:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+        if len(foodList) > 2:
+            # some one in vision
+            if len(visible) > 0:
+                for agent in visible:
+                    # someone scared in vision
+                    if agent.scaredTimer >= 10:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
 
-                # Visible and not scared
-                else:
-                    # in case the agent is in others boundary
-                    if gameState.getAgentState(self.index).isPacman:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                                'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
-                    else:
-                        return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
-                                'return': 0, 'reverse': -1}
+                    elif 0 < agent.scaredTimer < 10:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
 
-        # no one in vision
-        else:
-            # in case the agent is in others boundary
-            if gameState.getAgentState(self.index).isPacman:
-                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
-                        'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                    # Visible and not scared
+                    else:
+                        # in case the agent is in others boundary
+                        if gameState.getAgentState(self.index).isPacman:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                        else:
+                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}
+
+            # no one in vision
             else:
-                return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
-                        'return': 0, 'reverse': -1}
+                # in case the agent is in others boundary
+                if gameState.getAgentState(self.index).isPacman:
+                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': -1,
+                            'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                else:
+                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 100, 'RiskInCorner': 0,
+                            'return': 0, 'reverse': -1}
+        else:
+            return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 100, 'RiskInCorner': -1,
+                    'return': -10, 'reverse': -1, 'distanceToCapsule': 0}
 
     def isCorner(self, gameState, depth):
         if depth > 0:
@@ -334,22 +340,23 @@ class DefensiveReflexAgent(DummyAgent):
   such an agent.
   """
     def getCenterPointOfDefensiveFood(self, gameState):
-        homeFoods = self.getFoodYouAreDefending(gameState).asList()
-        while len(homeFoods)> 1 :
-            newCenters = []
-            for i in range(0,len(homeFoods)-1) :
-                x = (homeFoods[i][0] + homeFoods[i+1][0])>>1
-                y = (homeFoods[i][1] + homeFoods[i+1][1])>>1
-                newCenters.append((x,y))
-                homeFoods.remove(homeFoods[i])
-                homeFoods.remove(homeFoods[i+1])
-            homeFoods = newCenters
-        return homeFoods[0]
+	homeFoods = self.getFoodYouAreDefending(gameState).asList()
+	while len(homeFoods)> 1 :
+		newCenters = []
+		while len(homeFoods) > 1:
+			x = (homeFoods[0][0] + homeFoods[1][0])>>1
+			y = (homeFoods[0][1] + homeFoods[1][1])>>1
+			newCenters.append((x,y))
+			homeFoods.remove(homeFoods[0])
+			homeFoods.remove(homeFoods[0])
+		for i in homeFoods:
+			newCenters.append(i)
+		homeFoods = newCenters
+	return homeFoods[0]
+    
 
     def getFeatures(self, gameState, action):
 
-        print self.displayDistributionsOverPositions(gameState)
-        
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
 
@@ -359,6 +366,10 @@ class DefensiveReflexAgent(DummyAgent):
         # Computes whether we're on defense (1) or offense (0)
         features['onDefense'] = 1
         if myState.isPacman: features['onDefense'] = 0
+        
+        # Computes the distance between defensive agent and food center
+        foodCenter = self.getCenterPointOfDefensiveFood(gameState)
+        features['distToFoodCenter'] = self.getMazeDistance(myPos, foodCenter)
 
         # Computes distance to invaders we can see
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
@@ -375,4 +386,13 @@ class DefensiveReflexAgent(DummyAgent):
         return features
 
     def getWeights(self, gameState, action):
-        return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+        successor = self.getSuccessor(gameState,action)
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+        if len(invaders) > 0:
+            return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 
+            'reverse': -2, 'distToFoodCenter':0}
+        else:
+             return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 
+            'reverse': -2, 'distToFoodCenter':-1}
+
