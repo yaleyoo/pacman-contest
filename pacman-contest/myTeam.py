@@ -316,7 +316,7 @@ class OffensiveReflexAgent(DummyAgent):
                     elif 0 < agent.scaredTimer < 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return self.setWeightsOfAllFeatures(100,  -10,      -5, 0,    0,    -2,  -1, -15)
+                            return self.setWeightsOfAllFeatures(100,  -10,      -5, 0,    0,    -1,  -1, -15)
                         else:
                             #return self.setWeightsOfAllFeatures(100,-3,-3,0,0,-0.01,-1,0)
                             return self.setWeightsOfAllFeatures(100,  -30,      -30, 0,    0,    0,  -1, -7)
@@ -336,12 +336,12 @@ class OffensiveReflexAgent(DummyAgent):
                         # if to close to an enemy, try to get the capsule or go home
                         if min(distance) <= 3:
                             #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
-                            return self.setWeightsOfAllFeatures(100,  -5,      -2,  10,    0,    -50,  -1, -100)
+                            return self.setWeightsOfAllFeatures(0, -5, -2, 10, 0, -2, -1, -17)
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
                             '''return {'foods': 100, 'distanceToHighFood': -5, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': -1,
                                     'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}'''
-                            return self.setWeightsOfAllFeatures(100,  -10,      -5, 10,    0,    -2,  -1, -15)
+                            return self.setWeightsOfAllFeatures(50,  -10,      -5, 10,    0,    -1,  -1, -27)
                         else:
                             ''' return {'foods': 100, 'distanceToHighFood': -5, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': 0,
                                     'return': 0, 'reverse': -1}'''
