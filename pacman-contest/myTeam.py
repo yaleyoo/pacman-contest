@@ -227,10 +227,10 @@ class OffensiveReflexAgent(DummyAgent):
             if disBoundary < boundaryMin:
                 boundaryMin = disBoundary
 
-        features['gohome'] = boundaryMin * math.sqrt(numOfCarry)  # - features['disToOpponent']
+        features['gohome'] = boundaryMin * numOfCarry  # - features['disToOpponent']
 
         if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
-            features['reverse'] = 1
+            features['reverse'] = 10
 
         # add priority food feature, the food at first half of enemy area has higher priority
         foodList = self.getFood(successor).asList()
@@ -321,10 +321,10 @@ class OffensiveReflexAgent(DummyAgent):
                         # if to close to an enemy, try to get the capsule or go home
                         if min(distance) <= 3:
                             #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
-                            return self.setWeightsOfAllFeatures(0, -5, -2, 10, -2, -1, -17)
+                            return self.setWeightsOfAllFeatures(0, 0, 0, 80, -2, -1, -250)
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return self.setWeightsOfAllFeatures(50, -10, -5, 10, -1, -1, -27)
+                            return self.setWeightsOfAllFeatures(50, -10, -5, 80, -1, -1, -150)
                         else:
                             return self.setWeightsOfAllFeatures(100, -20, -10, 10, 0, -1, -15)
 
