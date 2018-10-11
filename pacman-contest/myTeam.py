@@ -86,14 +86,15 @@ class DummyAgent(CaptureAgent):
         '''
         Your initialization code goes here, if you need any.
         '''
+        self.features = {}
         if self.red:
-            middle = (gameState.data.layout.width - 2) / 2
+            self.middle = (gameState.data.layout.width - 2) / 2
         else:
-            middle = (gameState.data.layout.width - 2) + 1 / 2
+            self.middle = (gameState.data.layout.width - 2) + 1 / 2
         self.boundary = []
         for i in range(1, gameState.data.layout.height - 1):
-            if not gameState.hasWall(middle, i):
-                self.boundary.append((middle, i))
+            if not gameState.hasWall(self.middle, i):
+                self.boundary.append((self.middle, i))
 
     def chooseAction(self, gameState):
         """
@@ -132,7 +133,7 @@ class DummyAgent(CaptureAgent):
     """
         features = self.getFeatures(gameState, action)
         weights = self.getWeights(gameState, action)
-
+        
         return features * weights
 
     def getFeatures(self, gameState, action):
@@ -222,7 +223,7 @@ class OffensiveReflexAgent(DummyAgent):
             features['disToOpponent'] = min(distance)
 
         if gameState.getAgentState(self.index).isPacman:
-            corner = self.isCorner(successor, 1)
+            corner = self.isCorner(successor, 0)
             # if the state is in a corner
             if corner:
                 dis = features['disToOpponent']
@@ -238,16 +239,45 @@ class OffensiveReflexAgent(DummyAgent):
             if disBoundary < boundaryMin:
                 boundaryMin = disBoundary
 
-        features['return'] = boundaryMin * math.sqrt(numOfCarry) - features['disToOpponent']
+        features['gohome'] = boundaryMin * math.sqrt(numOfCarry) #- features['disToOpponent']
 
         if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
             features['reverse'] = 1
+  
+   
+        #add priority food feature, the food at first half of enemy area has higher priority
+        foodList = self.getFood(successor).asList()
+        highPriorityList = []
+        lowPriorityList = []
+        middelOfEnemyArea = 0
+        if self.red :
+            middelOfEnemyArea = self.middle + gameState.data.layout.width >> 2
+        else:
+            middelOfEnemyArea = self.middle - gameState.data.layout.width >> 2
+        for food in foodList:
+            if self.red :
+                if food[0] < middelOfEnemyArea:
+                    highPriorityList.append(food)
+                else:
+                    lowPriorityList.append(food)
+            else:
+                if food[0] > middelOfEnemyArea:
+                    highPriorityList.append(food)
+                    foodList.remove(food)
+                else:
+                    lowPriorityList.append(food)
 
-        # Compute distance to the nearest food
-        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+        # Compute distance to the nearest high priority food
+        if len(highPriorityList) > 0:  # This should always be True,  but better safe than sorry
             myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
+            minDistance = min([self.getMazeDistance(myPos, food) for food in highPriorityList])
+            features['distanceToHighFood'] = minDistance
+        
+         # Compute distance to the nearest low priority food
+        if len(lowPriorityList) > 0:  # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in lowPriorityList])
+            features['distanceToLowFood'] = minDistance
 
         # add distanceToCapsule feature
         capsuleList = set(gameState.data.capsules) - set(self.getCapsulesYouAreDefending(gameState))
@@ -260,6 +290,7 @@ class OffensiveReflexAgent(DummyAgent):
             features['distanceToCapsule'] = minCapsuleDistance
         else:
             features['distanceToCapsule'] = 0
+     
 
         return features
 
@@ -268,7 +299,6 @@ class OffensiveReflexAgent(DummyAgent):
         opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
         foodList = self.getFood(successor).asList()
-
         if len(foodList) > 2:
             # some one in vision
             if len(visible) > 0:
@@ -277,43 +307,76 @@ class OffensiveReflexAgent(DummyAgent):
                     if agent.scaredTimer >= 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -3, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                    'return': -0.01, 'reverse': -1, 'distanceToCapsule': 0}
+                            #set high low same value as there is enough time to run away
+                            #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
+                            return self.setWeightsOfAllFeatures(100,  -20,      -20,   0,    0,    -1,  -1, -7)
                         else:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                    'return': 0, 'reverse': -1}
+                            return self.setWeightsOfAllFeatures(100,  -30,      -30, 0,    0,    0,  -1, -7)
 
                     elif 0 < agent.scaredTimer < 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 30, 'RiskInCorner': -1,
-                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': 0}
+                            return self.setWeightsOfAllFeatures(100,  -10,      -5, 0,    0,    -2,  -1, -15)
                         else:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0, 'RiskInCorner': 0,
-                                    'return': 0, 'reverse': -1}
+                            #return self.setWeightsOfAllFeatures(100,-3,-3,0,0,-0.01,-1,0)
+                            return self.setWeightsOfAllFeatures(100,  -30,      -30, 0,    0,    0,  -1, -7)
 
                     # Visible and not scared
                     else:
+                        state = successor.getAgentState(self.index)
+                        distance = []
+                        pos = state.getPosition()
+                        opponents = self.getOpponents(gameState)
+                        for o in opponents:
+                            opponent = successor.getAgentState(o)
+                            if not opponent.isPacman:
+                                opponentPos = opponent.getPosition()
+                                if opponentPos is not None:
+                                    distance.append(self.getMazeDistance(pos, opponentPos))
+                        # if to close to an enemy, try to get the capsule or go home
+                        if min(distance) <= 3:
+                            #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
+                            return self.setWeightsOfAllFeatures(100,  -5,      -2,  10,    0,    -50,  -1, -100)
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 50, 'RiskInCorner': -1,
-                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                            '''return {'foods': 100, 'distanceToHighFood': -5, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': -1,
+                                    'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}'''
+                            return self.setWeightsOfAllFeatures(100,  -10,      -5, 10,    0,    -2,  -1, -15)
                         else:
-                            return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 50, 'RiskInCorner': 0,
-                                    'return': 0, 'reverse': -1}
+                            ''' return {'foods': 100, 'distanceToHighFood': -5, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': 0,
+                                    'return': 0, 'reverse': -1}'''
+                            return self.setWeightsOfAllFeatures(100,  -20,      -10, 10,    0,    0,  -1, -15)
 
             # no one in vision
             else:
                 # in case the agent is in others boundary
                 if gameState.getAgentState(self.index).isPacman:
-                    return {'foods': 100, 'distanceToFood': -2, 'disToOpponent': 50, 'RiskInCorner': -1,
-                            'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}
+                    '''return {'foods': 100, 'distanceToHighFood': -3, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': -1,
+                            'return': -0.5, 'reverse': -1, 'distanceToCapsule': -2}'''
+                    return self.setWeightsOfAllFeatures(100,  -15,      -8,   0,    0,    -1,  -1, -15)
                 else:
-                    return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 50, 'RiskInCorner': 0,
-                            'return': 0, 'reverse': -1}
+                    '''return {'foods': 100, 'distanceToHighFood': -3, 'distanceToLowFood':-3, 'disToOpponent': 50, 'RiskInCorner': 0,
+                            'return': 0, 'reverse': -1}'''
+                    return self.setWeightsOfAllFeatures(100,  -20,      -10,  0,    0,    0,  -1, -15)
         else:
-            return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 50, 'RiskInCorner': -1,
-                    'return': -10, 'reverse': -1, 'distanceToCapsule': 0}
+            ''' return {'foods': 0, 'distanceToFood': 0, 'disToOpponent': 50, 'RiskInCorner': -1,
+                    'return': -10, 'reverse': -1, 'distanceToCapsule': 0}'''
+            return self.setWeightsOfAllFeatures(100,  0,      0, 10,    0,    -5,  -1, 0)
+        #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
+        #return self.setWeightsOfAllFeatures(100,  -10,      -5, 10,    0,    -5,  -1,-15)
+
+    def setWeightsOfAllFeatures(self, foods, distanceToHighFood, distanceToLowFood, disToOpponent, 
+    riskInCorner, gohome, reverse,distanceToCapsule):
+        weights = {}
+        weights['foods'] = foods
+        weights['distanceToHighFood'] = distanceToHighFood
+        weights['distanceToLowFood'] = distanceToLowFood
+        weights['disToOpponent'] = disToOpponent
+        weights['RiskInCorner']  = riskInCorner
+        weights['gohome'] = gohome
+        weights['reverse'] = reverse
+        weights['distanceToCapsule'] = distanceToCapsule
+        return weights
 
     def isCorner(self, gameState, depth):
         if depth > 0:
@@ -387,7 +450,7 @@ class DefensiveReflexAgent(DummyAgent):
         if action == Directions.STOP: features['stop'] = 1
         rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
         if action == rev: features['reverse'] = 1
-
+        self.features = features
         return features
 
     def getWeights(self, gameState, action):
