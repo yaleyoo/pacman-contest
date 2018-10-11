@@ -282,7 +282,7 @@ class OffensiveReflexAgent(DummyAgent):
 
     def getWeights(self, gameState, action):
         successor = self.getSuccessor(gameState, action)
-        opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
         foodList = self.getFood(successor).asList()
         if len(foodList) > 2:
@@ -297,14 +297,14 @@ class OffensiveReflexAgent(DummyAgent):
                             #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
                             return self.setWeightsOfAllFeatures(100, -20, -20, 0, -1, -1, -7)
                         else:
-                            return self.setWeightsOfAllFeatures(100, -30, -30, 0, 0, -1, -7)
+                            return self.setWeightsOfAllFeatures(100, -15, -8, 0, 0, -1, -7)
 
                     elif 0 < agent.scaredTimer < 10:
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return self.setWeightsOfAllFeatures(100, -10, -5, 0, -1, -1, -15)
+                            return self.setWeightsOfAllFeatures(100, -15, -13, 0, -1, -1, -15)
                         else:
-                            return self.setWeightsOfAllFeatures(100, -30, -30, 0, 0, -1, -7)
+                            return self.setWeightsOfAllFeatures(100, -15, -8, 0, 0, -1, -15)
 
                     # Visible and not scared
                     else:
@@ -321,12 +321,12 @@ class OffensiveReflexAgent(DummyAgent):
                         # if to close to an enemy, try to get the capsule or go home
                         if min(distance) <= 3:
                             #                                  FOODS, HIGHFOOD, LOW, OPP, CORNER HOME  R   CAPSULE
-                            return self.setWeightsOfAllFeatures(0, 0, 0, 80, -2, -1, -250)
+                            return self.setWeightsOfAllFeatures(0, 0, 0, 20, -2, -1, -20)
                         # in case the agent is in others boundary
                         if gameState.getAgentState(self.index).isPacman:
-                            return self.setWeightsOfAllFeatures(50, -10, -5, 80, -1, -1, -150)
+                            return self.setWeightsOfAllFeatures(50, -9, -5, 20, -1, -1, -15)
                         else:
-                            return self.setWeightsOfAllFeatures(100, -20, -10, 10, 0, -1, -15)
+                            return self.setWeightsOfAllFeatures(100, -15, -8, 10, 0, -1, -15)
 
             # no one in vision
             else:
@@ -334,7 +334,7 @@ class OffensiveReflexAgent(DummyAgent):
                 if gameState.getAgentState(self.index).isPacman:
                     return self.setWeightsOfAllFeatures(100, -15, -8, 0, -1, -1, -15)
                 else:
-                    return self.setWeightsOfAllFeatures(100, -20, -10, 0, 0, -1, -15)
+                    return self.setWeightsOfAllFeatures(100, -15, -8, 0, 0, -1, -15)
         else:
             return self.setWeightsOfAllFeatures(100, 0, 0, 10, -5, -1, 0)
 
