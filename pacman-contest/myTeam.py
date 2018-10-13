@@ -54,37 +54,14 @@ def createTeam(firstIndex, secondIndex, isRed,
 ##########
 
 class DummyAgent(CaptureAgent):
-    """
-    A Dummy agent to serve as an example of the necessary agent structure.
-    You should look at baselineTeam.py for more details about how to
-    create an agent as this is the bare minimum.
-    """
 
     def registerInitialState(self, gameState):
-        """
-        This method handles the initial setup of the
-        agent to populate useful fields (such as what team
-        we're on).
-
-        A distanceCalculator instance caches the maze distances
-        between each pair of positions, so your agents can use:
-        self.distancer.getDistance(p1, p2)
-
-        IMPORTANT: This method may run for at most 15 seconds.
-        """
-
-        '''
-        Make sure you do not delete the following line. If you would like to
-        use Manhattan distances instead of maze distances in order to save
-        on initialization time, please take a look at
-        CaptureAgent.registerInitialState in captureAgents.py.
-        '''
         self.start = gameState.getAgentPosition(self.index)
         CaptureAgent.registerInitialState(self, gameState)
 
-        '''
-        Your initialization code goes here, if you need any.
-        '''
+        ######################
+        ### setup boundary ###
+        ######################
         if self.red:
             self.middle = (gameState.data.layout.width - 2) / 2
         else:
@@ -95,40 +72,33 @@ class DummyAgent(CaptureAgent):
                 self.boundary.append((self.middle, i))
 
     def chooseAction(self, gameState):
-        """
-        Picks among actions randomly.
-        """
         gameStateCopy = gameState.deepCopy()
         actions = gameStateCopy.getLegalActions(self.index)
         actions.remove(Directions.STOP)
 
-        values = [self.evaluate(gameState, a) for a in actions]
-        # values = []
-        # for a in actions:
-        #     value = self.MCTS(gameState, a, 0.1, 4, 1)
-        #     values.append(value)
+        values = []
+        for a in actions:
+            value = self.MCTS(gameState, a, 0.1, 4, 1)
+            values.append(value)
 
+        values = [self.evaluate(gameState, a) for a in actions]
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
         return random.choice(bestActions)
 
     def getSuccessor(self, gameState, action):
-        """
-    Finds the next successor which is a grid position (location tuple).
-    """
         successor = gameState.generateSuccessor(self.index, action)
         pos = successor.getAgentState(self.index).getPosition()
         if pos != nearestPoint(pos):
-            # Only half a grid position was covered
             return successor.generateSuccessor(self.index, action)
         else:
             return successor
 
     def evaluate(self, gameState, action):
         """
-    Computes a linear combination of features and feature weights
-    """
+        Computes a linear combination of features and feature weights
+        """
         features = self.getFeatures(gameState, action)
         weights = self.getWeights(gameState, action)
 
@@ -143,39 +113,9 @@ class DummyAgent(CaptureAgent):
     def getWeights(self, gameState, action):
         return {'foods': 100, 'distanceToFood': -1, 'disToOpponent': 0}
 
-    def qLearning(self, gameState, decay, depth):
-        new_state = gameState.deepCopy()
-        if depth == 0:
-            result_list = []
-            actions = new_state.getLegalActions(self.index)
-            actions.remove(Directions.STOP)
-
-            reversed_direction = Directions.REVERSE[new_state.getAgentState(self.index).configuration.direction]
-            if reversed_direction in actions and len(actions) > 1:
-                actions.remove(reversed_direction)
-            a = random.choice(actions)
-            next_state = new_state.generateSuccessor(self.index, a)
-            result_list.append(self.evaluate(next_state, Directions.STOP))
-            return max(result_list)
-
-        # Get valid actions
-        result_list = []
-        actions = new_state.getLegalActions(self.index)
-        current_direction = new_state.getAgentState(self.index).configuration.direction
-        # The agent should not use the reverse direction during simulation
-
-        reversed_direction = Directions.REVERSE[current_direction]
-        if reversed_direction in actions and len(actions) > 1:
-            actions.remove(reversed_direction)
-
-        # Randomly chooses a valid action
-        for a in actions:
-            # Compute new state and update depth
-            next_state = new_state.generateSuccessor(self.index, a)
-            result_list.append(
-                self.evaluate(next_state, Directions.STOP) + decay * self.qLearning(next_state, decay, depth - 1))
-        return max(result_list)
-
+    #####################################################
+    ### using MCTS to randomly simulate 'depth' steps ###
+    #####################################################
     def MCTS(self, gameState, action, discount, depth, rounds):
         gameStateCopy = gameState.deepCopy()
         child = gameState.generateSuccessor(self.index, action).deepCopy()
@@ -184,10 +124,9 @@ class DummyAgent(CaptureAgent):
         if depth > 0:
             a = random.choice(actions)
             value = self.evaluate(gameState, action)
-
+            # based on the result next step to update the value for current state
             value = value + discount ** rounds * self.MCTS(child, a, discount, depth - 1, rounds + 1)
             return value
-
         else:
             return self.evaluate(gameState, action)
 
@@ -202,12 +141,13 @@ class OffensiveReflexAgent(DummyAgent):
     def getFeatures(self, gameState, action):
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
-
-        foodList = self.getFood(successor).asList()
-        features['foods'] = -len(foodList)  # self.getScore(successor)
-
         successorAgent = successor.getAgentState(self.index)
 
+        # remaining foods
+        foodList = self.getFood(successor).asList()
+        features['foods'] = -len(foodList)
+
+        # min distance to visible opponent
         distance = []
         pos = successorAgent.getPosition()
         opponents = self.getOpponents(gameState)
@@ -218,19 +158,18 @@ class OffensiveReflexAgent(DummyAgent):
                 opponentPos = opponent.getPosition()
                 if opponentPos is not None:
                     distance.append(self.getMazeDistance(pos, opponentPos))
-
         if len(distance) > 0:
             features['disToOpponent'] = min(distance)
 
-        numOfCarry = successor.getAgentState(self.index).numCarrying
+        # the distance from closet boundary
         boundaryMin = 1000000
         for i in range(len(self.boundary)):
             disBoundary = self.getMazeDistance(pos, self.boundary[i])
             if disBoundary < boundaryMin:
                 boundaryMin = disBoundary
-
         features['gohome'] = boundaryMin
 
+        # reverse action
         if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
             features['reverse'] = 10
 
@@ -241,8 +180,7 @@ class OffensiveReflexAgent(DummyAgent):
         if len(foodList) > 0:  # This should always be True,  but better safe than sorry
             myPos = successor.getAgentState(self.index).getPosition()
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToHighFood'] = minDistance
-
+            features['distanceToFood'] = minDistance
 
         # add distanceToCapsule feature
         capsuleList = set(gameState.data.capsules) - set(self.getCapsulesYouAreDefending(gameState))
@@ -255,6 +193,8 @@ class OffensiveReflexAgent(DummyAgent):
             features['distanceToCapsule'] = minCapsuleDistance
         else:
             features['distanceToCapsule'] = 0
+
+        # balance used for balance the value between eatable foods and uneatable foods
         features['balance'] = 1
 
         return features
@@ -265,42 +205,68 @@ class OffensiveReflexAgent(DummyAgent):
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
         foodList = self.getFood(gameState).asList()
 
-        #when eating more than half of food, go home
+        # when eating more than half of food, go home
         foodOfCarry = gameState.getAgentState(self.index).numCarrying
+        # detect whether there are existing scared enemy
         isScared = False
-        for agent in visible :
+        for agent in visible:
             if agent.scaredTimer > 10:
                 isScared = True
+
+        ##############################################################################
+        # in case the agent carrying lots of foods, increasing the attempt to return #
+        ##############################################################################
         if foodOfCarry >= len(self.getFood(gameState).asList()) and not isScared:
             boundaryMin = 999999
             for i in range(len(self.boundary)):
-                disBoundary = self.getMazeDistance(gameState.getAgentState(self.index).getPosition() , self.boundary[i])
+                disBoundary = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), self.boundary[i])
                 if disBoundary < boundaryMin:
-                    return {'foods': 0, 'distanceToHighFood': 0, 'distanceToLowFood': 0,
-                                        'disToOpponent': 8000, 'gohome': -9000, 'reverse': 0, 'distanceToCapsule': 0,
-                                        'balance': 0}
-
+                    return {'foods': 0,
+                            'distanceToFood': 0,
+                            'disToOpponent': 8000,
+                            'gohome': -9000,
+                            'reverse': 0,
+                            'distanceToCapsule': 0,
+                            'balance': 0}
+        ########################################################
+        # if more the number of existing foods is large than 2 #
+        ########################################################
         if len(foodList) > 2:
             # some one in vision
             if len(visible) > 0:
                 for agent in visible:
                     # someone scared in vision
                     if agent.scaredTimer > 10:
-                        # in case the agent is in others boundary
+                        # in case the agent is in others boundary, keep eating
                         if successor.getAgentState(self.index).isPacman:
-                            return {'foods': 120, 'distanceToHighFood': -12, 'distanceToLowFood': 0,
-                                    'disToOpponent': 0, 'gohome': 0, 'reverse': -1, 'distanceToCapsule': 0}
+                            return {'foods': 120,
+                                    'distanceToFood': -12,
+                                    'disToOpponent': 0,
+                                    'gohome': 0,
+                                    'reverse': -1,
+                                    'distanceToCapsule': 0}
+                        # in self boundary, try to go for foods
                         else:
-                            return {'foods': 120, 'distanceToHighFood': -12, 'distanceToLowFood': 0,
-                                    'disToOpponent': 0, 'gohome': 0, 'reverse': -1, 'distanceToCapsule': 0}
+                            return {'foods': 120,
+                                    'distanceToFood': -12,
+                                    'disToOpponent': 0,
+                                    'gohome': 0,
+                                    'reverse': -1,
+                                    'distanceToCapsule': 0}
+                    # someone in vision but about to become not scared, keep eating but trying to go home
                     elif 0 < agent.scaredTimer <= 10:
-                        return {'foods': 100, 'distanceToHighFood': -10, 'distanceToLowFood': 0,
-                                'disToOpponent': 14, 'gohome': -8, 'reverse': -1, 'distanceToCapsule': -15}
+                        return {'foods': 100,
+                                'distanceToFood': -10,
+                                'disToOpponent': 14,
+                                'gohome': -8,
+                                'reverse': -1,
+                                'distanceToCapsule': -15}
                     # Visible and not scared
                     else:
                         state = successor.getAgentState(self.index)
                         distance = []
                         pos = state.getPosition()
+                        # compute the distance from the closest opponent
                         opponents = self.getOpponents(gameState)
                         for o in opponents:
                             opponent = successor.getAgentState(o)
@@ -310,39 +276,49 @@ class OffensiveReflexAgent(DummyAgent):
                                     distance.append(self.getMazeDistance(pos, opponentPos))
                         # if to close to an enemy, try to get the capsule or go home
                         if min(distance) <= 5:
-                            # in case the agent is in others boundary
+                            # in case the agent is in others boundary, don't eat foods, try to go home
                             if successor.getAgentState(self.index).isPacman:
-                                return {'foods': 0, 'distanceToHighFood': 0, 'distanceToLowFood': 0,
-                                        'disToOpponent': 90, 'gohome': -80, 'reverse': -10, 'distanceToCapsule': -80,
+                                return {'foods': 0,
+                                        'distanceToFood': 0,
+                                        'disToOpponent': 90,
+                                        'gohome': -80,
+                                        'reverse': -10,
+                                        'distanceToCapsule': -80,
                                         'balance': -100000}
                             else:
-                                return {'foods': 100, 'distanceToHighFood': -9, 'distanceToLowFood': 0,
-                                        'disToOpponent': 14, 'gohome': -8, 'reverse': -1, 'distanceToCapsule': -15}
+                                return {'foods': 100,
+                                        'distanceToFood': -9,
+                                        'disToOpponent': 14,
+                                        'gohome': -8,
+                                        'reverse': -1,
+                                        'distanceToCapsule': -15}
+                        # if opponent is in vision but still far away, keep eating
                         else:
-                            return {'foods': 100, 'distanceToHighFood': -9, 'distanceToLowFood': 0,
-                                    'disToOpponent': 14, 'gohome': -8, 'reverse': -1, 'distanceToCapsule': -15}
+                            return {'foods': 100,
+                                    'distanceToFood': -9,
+                                    'disToOpponent': 14,
+                                    'gohome': -8,
+                                    'reverse': -1,
+                                    'distanceToCapsule': -15}
 
-            # no one in vision
+            # no one in vision, keep eating
             else:
-                # in case the agent is in others boundary
-                if successor.getAgentState(self.index).isPacman:
-                    return self.setWeightsOfAllFeatures(100, -9, 0, 14, -8, -1, -15)
-                else:
-                    return self.setWeightsOfAllFeatures(100, -9, 0, 14, -8, -1, -15)
+                return {'foods': 100,
+                        'distanceToFood': -9,
+                        'disToOpponent': 14,
+                        'gohome': -8,
+                        'reverse': -1,
+                        'distanceToCapsule': -15}
+        #######################################################
+        # if the number of left foods is less than 2, go home #
+        #######################################################
         else:
-            return self.setWeightsOfAllFeatures(0, 0, 0, 14, -7, -1, 0)
-
-    def setWeightsOfAllFeatures(self, foods, distanceToHighFood, distanceToLowFood, disToOpponent,
-                                gohome, reverse, distanceToCapsule):
-        weights = {}
-        weights['foods'] = foods
-        weights['distanceToHighFood'] = distanceToHighFood
-        weights['distanceToLowFood'] = 0
-        weights['disToOpponent'] = disToOpponent
-        weights['gohome'] = gohome
-        weights['reverse'] = reverse
-        weights['distanceToCapsule'] = distanceToCapsule
-        return weights
+            return {'foods': 0,
+                    'distanceToFood': -0,
+                    'disToOpponent': 14,
+                    'gohome': -7,
+                    'reverse': -1,
+                    'distanceToCapsule': 0}
 
 
 class DefensiveReflexAgent(DummyAgent):
@@ -352,21 +328,6 @@ class DefensiveReflexAgent(DummyAgent):
   could be like.  It is not the best or only way to make
   such an agent.
   """
-
-    def getCenterPointOfDefensiveFood(self, gameState):
-        homeFoods = self.getFoodYouAreDefending(gameState).asList()
-        while len(homeFoods) > 1:
-            newCenters = []
-            while len(homeFoods) > 1:
-                x = (homeFoods[0][0] + homeFoods[1][0]) >> 1
-                y = (homeFoods[0][1] + homeFoods[1][1]) >> 1
-                newCenters.append((x, y))
-                homeFoods.remove(homeFoods[0])
-                homeFoods.remove(homeFoods[0])
-            for i in homeFoods:
-                newCenters.append(i)
-            homeFoods = newCenters
-        return homeFoods[0]
 
     def getFeatures(self, gameState, action):
         features = util.Counter()
@@ -383,7 +344,6 @@ class DefensiveReflexAgent(DummyAgent):
         foodCenter = self.getCenterPointOfDefensiveFood(gameState)
         if gameState.hasWall(foodCenter[0], foodCenter[1]):
             foodCenter = self.nearPosInGrid(gameState, foodCenter)
-
         features['distToFoodCenter'] = self.getMazeDistance(myPos, foodCenter)
 
         # Computes distance to invaders we can see
@@ -394,6 +354,7 @@ class DefensiveReflexAgent(DummyAgent):
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
             features['invaderDistance'] = min(dists)
 
+        # try not to going too close to the enemy
         for a in invaders:
             if self.getMazeDistance(successor.getAgentState(self.index).getPosition(), a.getPosition()) < 2:
                 features['inDangerousZone'] = 1
@@ -409,21 +370,47 @@ class DefensiveReflexAgent(DummyAgent):
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
         scaredTime = successor.getAgentState(self.index).scaredTimer
+        ##################################################################
+        # if the agent is scared, keep chasing but don't going too close #
+        ##################################################################
         if scaredTime > 0:
             if len(invaders) > 0:
-                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
-                        'reverse': -2, 'distToFoodCenter': 0 , 'inDangerousZone': -10000}
+                return {'numInvaders': -1000,
+                        'onDefense': 100,
+                        'invaderDistance': -10,
+                        'stop': -100,
+                        'reverse': -2,
+                        'distToFoodCenter': 0,
+                        'inDangerousZone': -10000}
             else:
-                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
-                        'reverse': -2, 'distToFoodCenter': -1, 'inDangerousZone': -10000}
+                return {'numInvaders': -1000,
+                        'onDefense': 100,
+                        'invaderDistance': -10,
+                        'stop': -100,
+                        'reverse': -2,
+                        'distToFoodCenter': -1,
+                        'inDangerousZone': -10000}
+        ###############################################################
+        # if the agent is not scared, try to stay in the food center, #
+        # if someone in vision, chasing it.                           #
+        ###############################################################
         else:
             if len(invaders) > 0:
-                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
-                        'reverse': -2, 'distToFoodCenter': 0}
+                return {'numInvaders': -1000,
+                        'onDefense': 100,
+                        'invaderDistance': -10,
+                        'stop': -100,
+                        'reverse': -2,
+                        'distToFoodCenter': 0}
             else:
-                return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100,
-                        'reverse': -2, 'distToFoodCenter': -1}
+                return {'numInvaders': -1000,
+                        'onDefense': 100,
+                        'invaderDistance': -10,
+                        'stop': -100,
+                        'reverse': -2,
+                        'distToFoodCenter': -1}
 
+    # find the closest position which has no wall near the pos
     def nearPosInGrid(self, gameState, pos):
         left = (pos[0] - 2, pos[1])
         right = (pos[0] + 2, pos[1])
@@ -434,8 +421,10 @@ class DefensiveReflexAgent(DummyAgent):
         for dir in dirList:
             if self.inGrid(dir, gameState) and not gameState.hasWall(dir[0], dir[1]):
                 return dir
+        # if no pos found return a random point in the boundary
         return random.choice(self.boundary)
 
+    # check the point is valid in the playground
     def inGrid(self, pos, gameState):
         if pos[0] < 1:
             return False
@@ -447,3 +436,19 @@ class DefensiveReflexAgent(DummyAgent):
             return False
         else:
             return True
+
+    # compute the center point of all of the left foods
+    def getCenterPointOfDefensiveFood(self, gameState):
+        homeFoods = self.getFoodYouAreDefending(gameState).asList()
+        while len(homeFoods) > 1:
+            newCenters = []
+            while len(homeFoods) > 1:
+                x = (homeFoods[0][0] + homeFoods[1][0]) >> 1
+                y = (homeFoods[0][1] + homeFoods[1][1]) >> 1
+                newCenters.append((x, y))
+                homeFoods.remove(homeFoods[0])
+                homeFoods.remove(homeFoods[0])
+            for i in homeFoods:
+                newCenters.append(i)
+            homeFoods = newCenters
+        return homeFoods[0]
