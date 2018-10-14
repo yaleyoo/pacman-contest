@@ -268,14 +268,6 @@ class DefensiveReflexAgent(CaptureAgent):
         myState = successor.getAgentState(self.index)
         myPos = myState.getPosition()
 
-        boundaryMin = 1000000
-        for i in range(len(self.boundary)):
-            disBoundary = self.getMazeDistance(myPos, self.boundary[i])
-            if disBoundary < boundaryMin:
-                boundaryMin = disBoundary
-
-        features['boundary'] = -boundaryMin
-
         # Computes whether we're on defense (1) or offense (0)
         features['onDefense'] = 1
         if myState.isPacman: features['onDefense'] = 0
